@@ -1,4 +1,5 @@
 import sqlite3
+
 from aiogram import Bot, Dispatcher, types
 from aiogram import executor
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -7,8 +8,12 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-TOKEN = '6065433616:AAGr3378XhYPUtNDgRPhW_0jxQySeitjWUw'
+from database.config_db import host, user, password, db_name
+from database.db import Quiz
 
+from config import TOKEN
+
+quiz = Quiz(host, user, password, db_name)
 bot = Bot(TOKEN)
 
 storage = MemoryStorage()
@@ -37,32 +42,6 @@ markup.add(butt, butt2)
 conn = sqlite3.connect('../polls.db')
 cursor = conn.cursor()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS polls (
-        id INTEGER PRIMARY KEY,
-        photo_id TEXT,
-        poll_title TEXT,
-        option_1 TEXT,
-        option_2 TEXT,
-        option_3 TEXT,
-        option_4 TEXT,
-        option_5 TEXT,
-        correct_option INTEGER,
-        option_6 TEXT
-    )
-''')
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS schedule (
-        id INTEGER PRIMARY KEY,
-        hours INTEGER,
-        minutes INTEGER
-    )
-''')
-
-conn.commit()
-conn.close()
-
 
 class FSMStates(StatesGroup):
     waiting_for_photo = State()
@@ -86,24 +65,14 @@ async def process_poll_time(message: types.Message, state: FSMContext):
 
         hours, minutes = map(int, time.split(":"))
 
-        conn = sqlite3.connect('../polls.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-                        INSERT OR REPLACE INTO schedule (id, hours, minutes)
-                        VALUES (?, ?, ?)
-                    ''', (1, hours, minutes))
-        conn.commit()
-        conn.close()
+        quiz.insert_data_time(hours, minutes)
 
     await message.answer(f"Время отправки установлено на {hours:02}:{minutes:02}")
     await state.finish()
 
 
 async def send_poll(bot: Bot):
-    conn = sqlite3.connect('../polls.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM polls LIMIT 1')
-    poll_data = cursor.fetchone()
+    poll_data = quiz.select_polls()
 
     if poll_data:
         idd = poll_data[1]
@@ -116,9 +85,9 @@ async def send_poll(bot: Bot):
         correct_option = poll_data[8] - 1
         option_6 = poll_data[9]
 
-        await bot.send_photo(-1001617602824, photo=idd)
+        await bot.send_photo(1280899097, photo=idd)
         await bot.send_poll(
-            -1001617602824,
+            1280899097,
             question=poll_title,
             options=[option_1, option_2, option_3, option_4, option_5],
             type='quiz',
@@ -126,8 +95,7 @@ async def send_poll(bot: Bot):
             is_anonymous=True,
         )
 
-        cursor.execute('DELETE FROM polls WHERE id = ?', (poll_data[0],))
-        conn.commit()
+        quiz.delete_polls(poll_data[0], )
 
     conn.close()
 
@@ -199,34 +167,18 @@ async def send_correct_option(message: types.Message, state: FSMContext):
         data['option'] = message.text
     await message.answer("Викторина создана")
 
-    conn = sqlite3.connect('../polls.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO polls (photo_id, poll_title, option_1, option_2, option_3, option_4, option_5, correct_option, option_6)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        idd,
-        data['poll_text'],
-        data['options'].split('\n')[0],
-        data['options'].split('\n')[1],
-        data['options'].split('\n')[2],
-        data['options'].split('\n')[3],
-        data['options'].split('\n')[4],
-        int(data['correct_option']),
-        data['option']
-    ))
-    conn.commit()
-    conn.close()
+    quiz.insert_data(
+        idd=idd,
+        poll_title=data['poll_text'],
+        options=data['options'],
+        correct_option=data['correct_option'],
+        option=data['option'])
 
     await state.finish()
 
 
 def get_scheduled_time():
-    conn = sqlite3.connect('../polls.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT hours, minutes FROM schedule')
-    result = cursor.fetchone()
-    conn.close()
+    result = quiz.select_time_send_polls()
 
     if result:
         return result
