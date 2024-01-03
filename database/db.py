@@ -96,3 +96,11 @@ class Quiz:
         with self.connection:
             self.cur.execute("""
             DELETE FROM polls WHERE id = %s;""", (id_deleted, ))
+
+    def show_quiz(self):
+        with self.connection:
+            self.cur.execute("""
+            SELECT COUNT(*) FROM polls;""")
+            result = self.cur.fetchone()
+        return result
+
