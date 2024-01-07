@@ -100,6 +100,8 @@ async def process_poll_time(message: types.Message, state: FSMContext):
 def register_insert_data(dp: Dispatcher):
     dp.register_message_handler(poll_start, text=['Викторины'])
     dp.register_message_handler(set_poll_time, text=['Время отправки'])
+    dp.register_message_handler(back_with_fsm_welcome, text='Отмена', state="*")
+
     dp.register_message_handler(send_photo, content_types=['photo'], state=FSMStates.waiting_for_photo)
     dp.register_message_handler(send_poll_text, content_types=['text'], state=FSMStates.waiting_for_poll_text)
     dp.register_message_handler(send_options, content_types=['text'], state=FSMStates.waiting_for_options)
@@ -107,4 +109,3 @@ def register_insert_data(dp: Dispatcher):
     dp.register_message_handler(send_correction_option, content_types=['text'], state=FSMStates.option)
     dp.register_message_handler(process_poll_time, lambda message: message.text and message.text[0] != ":",
                                 state=FSMStates.waiting_for_poll_time)
-    dp.register_message_handler(back_with_fsm_welcome, state="*")
