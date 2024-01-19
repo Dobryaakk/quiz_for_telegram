@@ -45,4 +45,4 @@ QuizMaster Bot is designed to bring quiz entertainment to your Telegram groups! 
 
 ## 📢 Contact
 
-[Your Name](https://github.com/YourUsername): your.email@example.com
+[Dmytro](https://github.com/Dobryaakk): dobryyaakk@gmail.com
